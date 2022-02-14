@@ -1,15 +1,15 @@
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
-use crate::goal::{Goal, GoalId, RootGoal};
-use crate::holder::GoalHolder;
+use crate::goal::{DefaultGoal, Goal, GoalId, RootGoal};
+use crate::holder::{DefaultHolder, GoalHolder};
 use crate::status::Status;
 
-pub struct GoalHandler<H: GoalHolder> {
+pub struct GoalContainer<H: GoalHolder> {
     holder: Arc<RwLock<H>>,
     root_goal: RootGoal<H>
 }
 
-impl<H: GoalHolder> GoalHandler<H> {
+impl<H: GoalHolder> GoalContainer<H> {
 
     pub fn new(name: impl AsRef<str>, holder: H) -> Self {
         let arc = Arc::new(RwLock::new(holder));
@@ -33,10 +33,11 @@ impl<H: GoalHolder> GoalHandler<H> {
         let goal_id = holder.get_goal_id(self.root_goal.name()).unwrap();
         holder.get_all_children(goal_id).unwrap()
     }
-}
-
-pub struct GoalReport {
-    pub total_goals: usize,
-    pub in_progress: Vec<String>,
 
 }
+
+pub trait GoalHandler<H : GoalHolder> {
+    fn register_goals(&mut self, goals: impl IntoIterator<Item=GoalId>);
+    fn handle_goal_status_change<G : Goal<H>>(&mut self, goal: &G, status: &Status);
+}
+

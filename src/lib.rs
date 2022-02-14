@@ -2,6 +2,7 @@ pub mod goal;
 pub mod holder;
 pub mod status;
 pub mod view;
+pub mod progress;
 
 #[cfg(test)]
 mod tests {

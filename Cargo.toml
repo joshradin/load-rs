@@ -10,3 +10,5 @@ thiserror = "1.0.30"
 anyhow = "1.0.53"
 petgraph = { version="0.6.0", features=["graphmap"] }
 more_collection_macros = "0.2.1"
+gag = "1.0.0"
+lazy_static = "1.4.0"

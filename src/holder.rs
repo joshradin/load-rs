@@ -7,6 +7,7 @@ use std::borrow::Borrow;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::ops::Index;
+use crate::view::GoalHandler;
 
 pub trait GoalHolder
 where
@@ -19,7 +20,7 @@ where
     fn get_goal_outcome(&self, id: GoalId) -> Result<&Status, GoalError>;
     fn get_goal_id(&self, id: &String) -> Result<&GoalId, GoalError>;
 
-    fn set_goal_status<G: Goal<Self>>(&mut self, id: &G, outcome: Status) -> Result<(), GoalError>;
+    fn set_goal_status<G: Goal<Self>>(&mut self, id: &G, status: Status) -> Result<(), GoalError>;
 
     fn all_goals(&self) -> Vec<GoalId>;
 
@@ -75,16 +76,17 @@ where
 }
 
 #[derive(Debug)]
-pub struct DefaultHolder {
+pub struct DefaultHolder<G : GoalHandler<Self> = Self> {
     name_to_id: HashMap<String, GoalId>,
     all_ids: HashSet<GoalId>,
     goal_id_to_status: HashMap<GoalId, Status>,
     default_status: Status,
     next_id: usize,
     goal_graph: DiGraphMap<GoalId, ()>,
+    goal_handler: G
 }
 
-impl Index<&str> for DefaultHolder {
+impl<G : GoalHandler<Self>> Index<&str> for DefaultHolder<G> {
     type Output = GoalId;
 
     fn index(&self, index: &str) -> &Self::Output {
@@ -92,7 +94,7 @@ impl Index<&str> for DefaultHolder {
     }
 }
 
-impl Index<String> for DefaultHolder {
+impl<G : GoalHandler<Self>> Index<String> for DefaultHolder<G> {
     type Output = GoalId;
 
     fn index(&self, index: String) -> &Self::Output {
@@ -100,7 +102,7 @@ impl Index<String> for DefaultHolder {
     }
 }
 
-impl Index<&String> for DefaultHolder {
+impl<G : GoalHandler<Self>> Index<&String> for DefaultHolder<G> {
     type Output = GoalId;
 
     fn index(&self, index: &String) -> &Self::Output {
@@ -108,7 +110,7 @@ impl Index<&String> for DefaultHolder {
     }
 }
 
-impl GoalHolder for DefaultHolder {
+impl<GH : GoalHandler<Self>> GoalHolder for DefaultHolder<GH> {
     fn add_goal<G: Goal<Self>>(&mut self, goal: &G) -> GoalId {
         let next_id = self.next_id;
         self.next_id += 1;
@@ -156,19 +158,23 @@ impl GoalHolder for DefaultHolder {
     fn set_goal_status<G: Goal<Self>>(
         &mut self,
         goal: &G,
-        outcome: Status,
+        status: Status,
     ) -> Result<(), GoalError> {
         let name = goal.name();
         let id = *self.get_goal_id(name)?;
 
         match self.goal_id_to_status.entry(id) {
             Entry::Occupied(mut occ) => {
-                occ.insert(outcome);
+                occ.insert(status);
             }
             Entry::Vacant(v) => {
-                v.insert(outcome);
+                v.insert(status);
             }
         };
+
+        let ref status = self.goal_id_to_status[&id];
+        self.goal_handler.handle_goal_status_change(goal, status);
+
         Ok(())
     }
 
